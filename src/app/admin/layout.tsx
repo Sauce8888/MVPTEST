@@ -24,7 +24,7 @@ export default function AdminLayout({
     isAdminAuthenticated
   });
 
-  // Check for admin authentication from localStorage or normal authentication
+  // Check for admin authentication from localStorage
   useEffect(() => {
     // Extract authentication check to a function to handle SSR issues with localStorage
     const checkAdminAuth = () => {
@@ -42,25 +42,10 @@ export default function AdminLayout({
     }
   }, []);
 
-  // Redirect based on authentication status
-  useEffect(() => {
-    // Skip if still checking authentication
-    if (isCheckingAuth) return;
-    
-    // Check if we're already on the login page
-    const isLoginPage = window.location.pathname === '/admin/login';
-    
-    // If not authenticated and not on login page, redirect to login
-    if (!isAdminAuthenticated && !isLoginPage) {
-      console.log("AdminLayout: Not authenticated, redirecting to login");
-      router.push('/admin/login');
-    }
-  }, [isAdminAuthenticated, isCheckingAuth, router]);
-
   // Admin logout function
   const handleLogout = () => {
     localStorage.removeItem('adminAuthenticated');
-    router.push('/admin/login');
+    router.push('/admin');
   };
 
   // Show loading state while checking auth
@@ -73,19 +58,20 @@ export default function AdminLayout({
     );
   }
 
-  // If not authenticated and not on login page, show nothing while redirecting
-  if (!isAdminAuthenticated && window.location.pathname !== '/admin/login') {
+  // If on the main admin page, just render the children (login form or dashboard)
+  if (window.location.pathname === '/admin') {
+    return <>{children}</>;
+  }
+
+  // If not authenticated on subpages, redirect to main admin page
+  if (!isAdminAuthenticated && window.location.pathname !== '/admin') {
+    router.push('/admin');
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-        <p className="ml-3">Redirecting to login...</p>
+        <p className="ml-3">Redirecting to admin login...</p>
       </div>
     );
-  }
-
-  // If on login page, just render the children (login form)
-  if (window.location.pathname === '/admin/login') {
-    return <>{children}</>;
   }
 
   // Main admin layout when authenticated

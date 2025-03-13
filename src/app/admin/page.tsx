@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface DashboardStats {
   totalProperties: number;
@@ -11,6 +12,16 @@ interface DashboardStats {
 }
 
 export default function AdminDashboard() {
+  // Auth state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  
+  // Login form state
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Dashboard state
   const [stats, setStats] = useState<DashboardStats>({
     totalProperties: 0,
     totalClients: 0,
@@ -18,79 +29,193 @@ export default function AdminDashboard() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const router = useRouter();
 
-  // Use local storage admin authentication
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
+  // Check authentication status
   useEffect(() => {
-    // Check if admin is authenticated via localStorage
-    const adminAuth = localStorage.getItem('adminAuthenticated') === 'true';
-    setIsAuthenticated(adminAuth);
-    
-    if (!adminAuth) return;
-
-    const fetchStats = async () => {
-      try {
-        console.log("Fetching admin stats...");
-        setIsLoading(true);
-        
-        // Demo mode or real Supabase data
-        if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
-          // In demo mode, use mock data
-          setTimeout(() => {
-            setStats({
-              totalProperties: 12,
-              totalClients: 25,
-              totalPropertyClientRelations: 37,
-            });
-            setIsLoading(false);
-          }, 800);
-          return;
-        }
-        
-        // Fetch total properties count
-        const { count: propertiesCount, error: propertiesError } = await supabase
-          .from('properties')
-          .select('*', { count: 'exact', head: true });
-
-        console.log("Properties count:", propertiesCount, "Error:", propertiesError);
-
-        if (propertiesError) throw propertiesError;
-
-        // Fetch total clients count
-        const { count: clientsCount, error: clientsError } = await supabase
-          .from('clients')
-          .select('*', { count: 'exact', head: true });
-
-        console.log("Clients count:", clientsCount, "Error:", clientsError);
-        
-        if (clientsError) throw clientsError;
-
-        // Fetch total property-client relations count
-        const { count: relationsCount, error: relationsError } = await supabase
-          .from('property_client_relations')
-          .select('*', { count: 'exact', head: true });
-
-        console.log("Relations count:", relationsCount, "Error:", relationsError);
-        
-        if (relationsError) throw relationsError;
-
-        setStats({
-          totalProperties: propertiesCount || 0,
-          totalClients: clientsCount || 0,
-          totalPropertyClientRelations: relationsCount || 0,
-        });
-      } catch (err) {
-        console.error('Error fetching admin stats:', err);
-        setError('Failed to load dashboard statistics.');
-      } finally {
+    try {
+      const adminAuth = localStorage.getItem('adminAuthenticated') === 'true';
+      setIsAuthenticated(adminAuth);
+      setIsCheckingAuth(false);
+      
+      // If authenticated, fetch dashboard data
+      if (adminAuth) {
+        fetchStats();
+      } else {
         setIsLoading(false);
       }
-    };
-
-    fetchStats();
+    } catch (e) {
+      console.error('LocalStorage access error:', e);
+      setIsCheckingAuth(false);
+      setIsLoading(false);
+    }
   }, []);
 
+  // Login form handlers
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+    if (loginError) setLoginError('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSubmit(e);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    // Simple hardcoded password check
+    // In a real application, you would want to use a more secure method
+    const adminPassword = 'admin123'; // Simple password for now
+    
+    if (password === adminPassword) {
+      // Set admin auth in localStorage
+      localStorage.setItem('adminAuthenticated', 'true');
+      setIsAuthenticated(true);
+      fetchStats();
+    } else {
+      setLoginError('Invalid password. Please try again.');
+      setIsSubmitting(false);
+    }
+  };
+
+  // Fetch dashboard stats
+  const fetchStats = async () => {
+    try {
+      console.log("Fetching admin stats...");
+      setIsLoading(true);
+      
+      // Demo mode or real Supabase data
+      if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+        // In demo mode, use mock data
+        setTimeout(() => {
+          setStats({
+            totalProperties: 12,
+            totalClients: 25,
+            totalPropertyClientRelations: 37,
+          });
+          setIsLoading(false);
+        }, 800);
+        return;
+      }
+      
+      // Fetch total properties count
+      const { count: propertiesCount, error: propertiesError } = await supabase
+        .from('properties')
+        .select('*', { count: 'exact', head: true });
+
+      console.log("Properties count:", propertiesCount, "Error:", propertiesError);
+
+      if (propertiesError) throw propertiesError;
+
+      // Fetch total clients count
+      const { count: clientsCount, error: clientsError } = await supabase
+        .from('clients')
+        .select('*', { count: 'exact', head: true });
+
+      console.log("Clients count:", clientsCount, "Error:", clientsError);
+      
+      if (clientsError) throw clientsError;
+
+      // Fetch total property-client relations count
+      const { count: relationsCount, error: relationsError } = await supabase
+        .from('property_client_relations')
+        .select('*', { count: 'exact', head: true });
+
+      console.log("Relations count:", relationsCount, "Error:", relationsError);
+      
+      if (relationsError) throw relationsError;
+
+      setStats({
+        totalProperties: propertiesCount || 0,
+        totalClients: clientsCount || 0,
+        totalPropertyClientRelations: relationsCount || 0,
+      });
+    } catch (err) {
+      console.error('Error fetching admin stats:', err);
+      setError('Failed to load dashboard statistics.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Show loading state while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div className="flex justify-center items-center min-h-[50vh]">
+        <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+        <p className="ml-3">Loading admin area...</p>
+      </div>
+    );
+  }
+
+  // If not authenticated, show login form
+  if (!isAuthenticated) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center">
+        <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900">Admin Login</h1>
+            <p className="mt-2 text-gray-600">Enter the admin password to continue</p>
+          </div>
+          
+          {loginError && (
+            <div className="p-4 text-sm text-red-700 bg-red-100 rounded-md" role="alert">
+              {loginError}
+            </div>
+          )}
+          
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <div className="mt-1">
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  className="block w-full px-3 py-2 placeholder-gray-400 border border-gray-300 rounded-md shadow-sm appearance-none focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  value={password}
+                  onChange={handlePasswordChange}
+                  onKeyDown={handleKeyDown}
+                  aria-label="Admin password"
+                  tabIndex={0}
+                />
+              </div>
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                className="flex justify-center w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <svg className="w-5 h-5 mr-3 -ml-1 text-white animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Logging in...
+                  </>
+                ) : (
+                  'Login'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state while fetching dashboard data
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[50vh]">
@@ -100,6 +225,7 @@ export default function AdminDashboard() {
     );
   }
 
+  // Show dashboard when authenticated and data is loaded
   return (
     <div className="space-y-6">
       <div className="bg-white shadow rounded-lg p-6">
