@@ -6,8 +6,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
-import { compare, hash } from 'bcrypt';
+import { useAuth } from '@/lib/auth-context';
 
 const signupSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -25,6 +24,7 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
   const router = useRouter();
+  const { signUp } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
@@ -50,36 +50,23 @@ export default function SignupPage() {
     setError(null);
     
     try {
-      // Hash the password
-      const hashedPassword = await hash(data.password, 10);
-      
-      // Check if email already exists
-      const { data: existingUser, error: existingUserError } = await supabase
-        .from('hosts')
-        .select('email')
-        .eq('email', data.email)
-        .single();
-      
-      if (existingUser) {
-        setError('Email already in use. Please use a different email or sign in.');
-        setIsLoading(false);
-        return;
-      }
-      
-      // Insert new host
-      const { data: newHost, error: insertError } = await supabase
-        .from('hosts')
-        .insert({
-          email: data.email,
-          password_hash: hashedPassword,
+      const { error: signUpError } = await signUp(
+        data.email, 
+        data.password, 
+        {
           first_name: data.firstName,
           last_name: data.lastName,
-          phone: data.phone || null,
-        })
-        .select();
+          phone: data.phone
+        }
+      );
       
-      if (insertError) {
-        throw insertError;
+      if (signUpError) {
+        if (signUpError.message?.includes('already registered')) {
+          setError('Email already in use. Please use a different email or sign in.');
+        } else {
+          setError(signUpError.message || 'An error occurred during signup.');
+        }
+        return;
       }
       
       setSuccess(true);

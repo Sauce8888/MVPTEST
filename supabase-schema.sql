@@ -38,6 +38,33 @@ CREATE TABLE properties (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Clients table
+CREATE TABLE clients (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL, -- In production, use Supabase Auth instead
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  phone TEXT,
+  is_active BOOLEAN DEFAULT TRUE,
+  notes TEXT,
+  created_by UUID REFERENCES hosts(id) NOT NULL, -- Admin who created this client
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Property-Client relation table (for assigning properties to clients)
+CREATE TABLE property_client_relations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  property_id UUID REFERENCES properties(id) NOT NULL,
+  client_id UUID REFERENCES clients(id) NOT NULL,
+  assigned_by UUID REFERENCES hosts(id) NOT NULL, -- Admin who made the assignment
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(property_id, client_id) -- A property can be assigned to a client only once
+);
+
 -- Bookings table
 CREATE TABLE bookings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -109,6 +136,8 @@ CREATE TABLE website_settings (
 -- Create RLS policies (to be expanded based on actual auth implementation)
 ALTER TABLE hosts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
+ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE property_client_relations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE availability ENABLE ROW LEVEL SECURITY;
 ALTER TABLE custom_pricing ENABLE ROW LEVEL SECURITY;

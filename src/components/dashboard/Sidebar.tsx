@@ -4,14 +4,14 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, CalendarRange, CreditCard, Settings, Users, LineChart, Menu, X } from 'lucide-react';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/lib/auth-context';
 
 const Sidebar = () => {
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   
-  const isAdmin = session?.user?.isAdmin;
+  const isAdmin = user?.isAdmin;
   const baseRoute = isAdmin ? '/admin' : '/host';
   
   const hostLinks = [

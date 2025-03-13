@@ -3,26 +3,27 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, ChevronDown, LogOut, User as UserIcon } from 'lucide-react';
-import { signOut, useSession } from 'next-auth/react';
+import { useAuth } from '@/lib/auth-context';
 
 interface HeaderProps {
   user: {
     id: string;
+    email: string | null;
     name?: string | null;
-    email?: string | null;
-    isAdmin?: boolean;
-  };
+    isAdmin: boolean;
+  } | null;
 }
 
 const Header = ({ user }: HeaderProps) => {
   const router = useRouter();
+  const { signOut } = useAuth();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
   const toggleProfile = () => setIsProfileOpen(!isProfileOpen);
   
   const handleSignOut = async () => {
-    await signOut({ redirect: false });
-    router.push('/login');
+    await signOut();
+    // No need to redirect here, as signOut already handles redirection
   };
   
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -30,6 +31,8 @@ const Header = ({ user }: HeaderProps) => {
       toggleProfile();
     }
   };
+  
+  if (!user) return null;
   
   return (
     <header className="bg-white border-b border-gray-200 py-4 px-6 flex items-center justify-between">

@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type User } from '@supabase/supabase-js';
 
 // Create a single supabase client for interacting with your database
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -18,6 +18,9 @@ export const adminSupabase = supabaseServiceKey
     })
   : supabase;
 
+// Export Supabase types
+export type { User as SupabaseUser } from '@supabase/supabase-js';
+
 // Types based on our schema
 export type Host = {
   id: string;
@@ -25,6 +28,29 @@ export type Host = {
   first_name: string;
   last_name: string;
   phone?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Client = {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  is_active: boolean;
+  notes?: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PropertyClientRelation = {
+  id: string;
+  property_id: string;
+  client_id: string;
+  assigned_by: string;
+  notes?: string;
   created_at: string;
   updated_at: string;
 };
