@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth-context';
 
 export default function AdminLayout({
   children,
@@ -11,35 +10,14 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { user, isLoading } = useAuth();
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   
-  console.log("AdminLayout: Auth state", { 
-    user, 
-    isLoading, 
-    isAdmin: user?.isAdmin,
-    email: user?.email,
-    adminEmail: process.env.NEXT_PUBLIC_ADMIN_EMAIL,
-    isAdminAuthenticated
-  });
-
   // Check for admin authentication from localStorage
   useEffect(() => {
-    // Extract authentication check to a function to handle SSR issues with localStorage
-    const checkAdminAuth = () => {
-      const adminAuth = localStorage.getItem('adminAuthenticated') === 'true';
-      setIsAdminAuthenticated(adminAuth);
-      setIsCheckingAuth(false);
-    };
-
-    // Try-catch to handle potential localStorage issues in SSR
-    try {
-      checkAdminAuth();
-    } catch (e) {
-      console.error('LocalStorage access error:', e);
-      setIsCheckingAuth(false);
-    }
+    const adminAuth = localStorage.getItem('adminAuthenticated') === 'true';
+    setIsAdminAuthenticated(adminAuth);
+    setIsLoading(false);
   }, []);
 
   // Admin logout function
@@ -49,25 +27,31 @@ export default function AdminLayout({
   };
 
   // Show loading state while checking auth
-  if (isCheckingAuth) {
+  if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
+      <div className="flex justify-center items-center min-h-[50vh]">
         <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-        <p className="ml-3">Loading admin area...</p>
+        <p className="ml-3">Loading admin dashboard...</p>
       </div>
     );
   }
 
   // If on the main admin page, just render the children (login form or dashboard)
-  if (window.location.pathname === '/admin') {
+  // We'll determine this with a useEffect on the client side to avoid hydration issues
+  const isAdminPage = typeof window !== 'undefined' && window.location.pathname === '/admin';
+  if (isAdminPage) {
     return <>{children}</>;
   }
 
   // If not authenticated on subpages, redirect to main admin page
-  if (!isAdminAuthenticated && window.location.pathname !== '/admin') {
-    router.push('/admin');
+  if (!isAdminAuthenticated && !isAdminPage) {
+    // Use router to redirect
+    useEffect(() => {
+      router.push('/admin');
+    }, [router]);
+    
     return (
-      <div className="flex justify-center items-center min-h-screen">
+      <div className="flex justify-center items-center min-h-[50vh]">
         <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
         <p className="ml-3">Redirecting to admin login...</p>
       </div>
