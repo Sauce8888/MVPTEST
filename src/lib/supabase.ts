@@ -5,8 +5,22 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Log Supabase configuration status (without exposing sensitive keys)
+if (!supabaseUrl) {
+  console.error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
+}
+
+if (!supabaseKey) {
+  console.error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable');
+}
+
 // Client-side supabase client (limited permissions)
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+});
 
 // Server-side admin client with service role (full access)
 export const adminSupabase = supabaseServiceKey 
@@ -16,7 +30,13 @@ export const adminSupabase = supabaseServiceKey
         persistSession: false,
       },
     })
-  : supabase;
+  : (() => {
+      console.warn('⚠️ Using public client for admin operations because SUPABASE_SERVICE_ROLE_KEY is not set');
+      return supabase;
+    })();
+
+// Log the initialization status
+console.log('✅ Supabase clients initialized');
 
 // Export Supabase types
 export type { User as SupabaseUser } from '@supabase/supabase-js';
